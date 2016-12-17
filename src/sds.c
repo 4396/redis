@@ -226,6 +226,19 @@ void sdsclear(sds s) {
     s[0] = '\0';
 }
 
+/* @4396 2016-12-17 19:54:02
+ *
+ * 给sds对象扩容，以便能够容纳下新增addlen大小的数据
+ * 如果剩余空间足够容纳addlen大小的数据，则直接返回旧对象
+ * 否则由以前的大小和现在需要新增的大小共同确定一个sds新类型
+ * 新旧类型相同则realloc，不同则malloc，并free旧对象
+ *
+ * 新空间大小newlen扩容策略
+ * newlen小于SDS_MAX_PREALLOC时，直接扩容到newlen * 2
+ * newlen大于等于SDS_MAX_PREALLOC时，扩容newlen + SDS_MAX_PREALLOC
+ *
+ * 需要注意的是，扩容结束会给alloc设置新的值，但不会改变len的值
+ */
 /* Enlarge the free space at the end of the sds string so that the caller
  * is sure that after calling this function can overwrite up to addlen
  * bytes after the end of the string, plus one more byte for nul term.
@@ -277,6 +290,7 @@ sds sdsMakeRoomFor(sds s, size_t addlen) {
     return s;
 }
 
+/* 给sds对象缩容，将sds剩余的可用空间全部去掉 */
 /* Reallocate the sds string so that it has no free space at the end. The
  * contained string remains not altered, but next concatenation operations
  * will require a reallocation.
@@ -309,6 +323,7 @@ sds sdsRemoveFreeSpace(sds s) {
     return s;
 }
 
+/* 返回sds对象分配的大小，包含头大小、字符串长度、剩余空间大小和\0结束符 */
 /* Return the total size of the allocation of the specifed sds string,
  * including:
  * 1) The sds header before the pointer.
@@ -321,12 +336,25 @@ size_t sdsAllocSize(sds s) {
     return sdsHdrSize(s[-1])+alloc+1;
 }
 
+/* 返回sds对象的指针头，也就是sdshdrN的指针 */
 /* Return the pointer of the actual SDS allocation (normally SDS strings
  * are referenced by the start of the string buffer). */
 void *sdsAllocPtr(sds s) {
     return (void*) (s-sdsHdrSize(s[-1]));
 }
 
+/* @4396 2016-12-17 20:27:17 
+ *
+ * 将sds对象的字符串长度增大incr，incr也可以是负数，同时将最后一位置为\0
+ * 该操作并不会对sds对象进行扩缩容，仅仅只是改变len的长度和重置结尾标志
+ *
+ * 当使用sdsMakeRoomFor扩容后，再给剩余空间赋值，最后调用该函数设置赋值的长度
+ * oldlen = sdslen(s);
+ * s = sdsMakeRoomFor(s, BUFFER_SIZE);
+ * nread = read(fd, s+oldlen, BUFFER_SIZE);
+ * ... check for nread <= 0 and handle it ...
+ * sdsIncrLen(s, nread);
+ */
 /* Increment the sds length and decrements the left free space at the
  * end of the string according to 'incr'. Also set the null term
  * in the new end of the string.
@@ -391,6 +419,7 @@ void sdsIncrLen(sds s, int incr) {
     s[len] = '\0';
 }
 
+/* 将sds对象的空间增长到len大小，并将新增的空间全部置为0 */
 /* Grow the sds to have the specified length. Bytes that were not part of
  * the original length of the sds will be set to zero.
  *
@@ -409,6 +438,7 @@ sds sdsgrowzero(sds s, size_t len) {
     return s;
 }
 
+/* 向sds尾部追加长度为len的t内容 */
 /* Append the specified binary-safe string pointed by 't' of 'len' bytes to the
  * end of the specified sds string 's'.
  *
@@ -425,6 +455,7 @@ sds sdscatlen(sds s, const void *t, size_t len) {
     return s;
 }
 
+/* 向sds对象尾部追加字符串t */
 /* Append the specified null termianted C string to the sds string 's'.
  *
  * After the call, the passed sds string is no longer valid and all the
@@ -433,6 +464,7 @@ sds sdscat(sds s, const char *t) {
     return sdscatlen(s, t, strlen(t));
 }
 
+/* 向sds对象尾部追加另一个sds对象t */
 /* Append the specified sds 't' to the existing sds 's'.
  *
  * After the call, the modified sds string is no longer valid and all the
