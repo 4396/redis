@@ -72,6 +72,18 @@ struct __attribute__ ((__packed__)) sdshdr64 {
     char buf[];
 };
 
+/* @4396 2016-12-17 11:05:10
+ * 
+ * hdr是header的缩写，sdshdrN用来记录sds头信息
+ * 所有的sds头结构体的最后两个字段都是flags和buf[]
+ * 对于sdshdr8、16、32、64只是len和alloc的类型区别
+ * sds就是一个char*，也等价于sdshdrN中的最后一个字段buf
+ *
+ * 理解s[-1]，s是一个sds类型，也就是char*，也是sdshdrN的buf字段
+ * 那么s[-1] == sdshdrN->buf[-1] == sdshdrN->buf - 1 == sdshdrN->flags
+ * 所以s[-1]就是在取sds的具体类型flags
+ */
+
 #define SDS_TYPE_5  0
 #define SDS_TYPE_8  1
 #define SDS_TYPE_16 2
@@ -83,6 +95,17 @@ struct __attribute__ ((__packed__)) sdshdr64 {
 #define SDS_HDR(T,s) ((struct sdshdr##T *)((s)-(sizeof(struct sdshdr##T))))
 #define SDS_TYPE_5_LEN(f) ((f)>>SDS_TYPE_BITS)
 
+/* @4396 2016-12-17 11:48:38
+ *
+ * SDS_TYPE_MASK等于7，2进制表示就是0x111，正好3位
+ * 使用sdshdrN->flags的低3位来表示sds类型
+ * 其中sdshdr5->flags的高5位用来表示字符串长度
+ * 其他类型的sds分别由相应类型的len表示字符串长度
+ * 
+ * sdshdrN所能表示字符串的最大长度就是2^N - 1
+ */
+
+/* 取sds的字符串长度 */
 static inline size_t sdslen(const sds s) {
     unsigned char flags = s[-1];
     switch(flags&SDS_TYPE_MASK) {
@@ -100,6 +123,7 @@ static inline size_t sdslen(const sds s) {
     return 0;
 }
 
+/* 取sds的可用空间，SDS_TYPE_5可用空间始终为0 */
 static inline size_t sdsavail(const sds s) {
     unsigned char flags = s[-1];
     switch(flags&SDS_TYPE_MASK) {
@@ -126,11 +150,13 @@ static inline size_t sdsavail(const sds s) {
     return 0;
 }
 
+/* 设置sds的字符串长度 */
 static inline void sdssetlen(sds s, size_t newlen) {
     unsigned char flags = s[-1];
     switch(flags&SDS_TYPE_MASK) {
         case SDS_TYPE_5:
             {
+                /* fp表示flags pointer，SDS_TYPE_5的flags由低3位的类型与高5位的长度组成 */
                 unsigned char *fp = ((unsigned char*)s)-1;
                 *fp = SDS_TYPE_5 | (newlen << SDS_TYPE_BITS);
             }
@@ -150,11 +176,13 @@ static inline void sdssetlen(sds s, size_t newlen) {
     }
 }
 
+/* 将sds的字符串长度加上inc */
 static inline void sdsinclen(sds s, size_t inc) {
     unsigned char flags = s[-1];
     switch(flags&SDS_TYPE_MASK) {
         case SDS_TYPE_5:
             {
+                /* fp表示flags pointer，SDS_TYPE_5的flags由低3位的类型与高5位的长度组成 */
                 unsigned char *fp = ((unsigned char*)s)-1;
                 unsigned char newlen = SDS_TYPE_5_LEN(flags)+inc;
                 *fp = SDS_TYPE_5 | (newlen << SDS_TYPE_BITS);
@@ -175,6 +203,7 @@ static inline void sdsinclen(sds s, size_t inc) {
     }
 }
 
+/* 获取sds的字符串(分配)空间大小 */
 /* sdsalloc() = sdsavail() + sdslen() */
 static inline size_t sdsalloc(const sds s) {
     unsigned char flags = s[-1];
@@ -193,6 +222,7 @@ static inline size_t sdsalloc(const sds s) {
     return 0;
 }
 
+/* 设置sds字符串(分配)空间大小 */
 static inline void sdssetalloc(sds s, size_t newlen) {
     unsigned char flags = s[-1];
     switch(flags&SDS_TYPE_MASK) {
