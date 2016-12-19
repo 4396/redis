@@ -67,6 +67,8 @@ static int _dictInit(dict *ht, dictType *type, void *privDataPtr);
 
 /* -------------------------- hash functions -------------------------------- */
 
+/* @4396 各种hash函数的实现，针对不同的数据类型使用不同的函数 */
+
 /* Thomas Wang's 32 bit Mix Function */
 unsigned int dictIntHashFunction(unsigned int key)
 {
@@ -110,6 +112,7 @@ unsigned int dictGenHashFunction(const void *key, int len) {
     /* Initialize the hash to a 'random' value */
     uint32_t h = seed ^ len;
 
+    /* @4396 每次计算4个字节 */
     /* Mix 4 bytes at a time into the hash */
     const unsigned char *data = (const unsigned char *)key;
 
@@ -127,6 +130,7 @@ unsigned int dictGenHashFunction(const void *key, int len) {
         len -= 4;
     }
 
+    /* @4396 计算剩余的几个字节，注意case后没有break */
     /* Handle the last few bytes of the input array  */
     switch(len) {
     case 3: h ^= data[2] << 16;
@@ -147,6 +151,7 @@ unsigned int dictGenHashFunction(const void *key, int len) {
 unsigned int dictGenCaseHashFunction(const unsigned char *buf, int len) {
     unsigned int hash = (unsigned int)dict_hash_function_seed;
 
+    /* @4396 (hash << 5) + hash == hash * 2^5 + hash == hash * 33 */
     while (len--)
         hash = ((hash << 5) + hash) + (tolower(*buf++)); /* hash * 33 + c */
     return hash;
@@ -154,6 +159,7 @@ unsigned int dictGenCaseHashFunction(const unsigned char *buf, int len) {
 
 /* ----------------------------- API implementation ------------------------- */
 
+/* @4396 重置(已经init过的)hash表，该函数只在ht_destroy中被使用 */
 /* Reset a hash table already initialized with ht_init().
  * NOTE: This function should only be called by ht_destroy(). */
 static void _dictReset(dictht *ht)
@@ -164,6 +170,7 @@ static void _dictReset(dictht *ht)
     ht->used = 0;
 }
 
+/* @4396 创建一个字典，传入操作函数指针集和私有对象 */
 /* Create a new hash table */
 dict *dictCreate(dictType *type,
         void *privDataPtr)
@@ -174,6 +181,7 @@ dict *dictCreate(dictType *type,
     return d;
 }
 
+/* @4396 初始化字典，重置字典中的2个hash表 */
 /* Initialize the hash table */
 int _dictInit(dict *d, dictType *type,
         void *privDataPtr)
@@ -182,18 +190,22 @@ int _dictInit(dict *d, dictType *type,
     _dictReset(&d->ht[1]);
     d->type = type;
     d->privdata = privDataPtr;
+    /* @4396 -1表示没有在重新计算元素hash */
     d->rehashidx = -1;
     d->iterators = 0;
     return DICT_OK;
 }
 
+/* @4396 重置字典的大小，将字典大小缩小到能够容纳所有元素的最小大小 */
 /* Resize the table to the minimal size that contains all the elements,
  * but with the invariant of a USED/BUCKETS ratio near to <= 1 */
 int dictResize(dict *d)
 {
     int minimal;
 
+    /* @4396 (配置项)不能重置大小或者正在重计算元素hash，返回错误 */
     if (!dict_can_resize || dictIsRehashing(d)) return DICT_ERR;
+    /* @4396 最小值等于hash表已使用个数，当然也不能小于DICT_HT_INITIAL_SIZE */
     minimal = d->ht[0].used;
     if (minimal < DICT_HT_INITIAL_SIZE)
         minimal = DICT_HT_INITIAL_SIZE;
@@ -287,6 +299,7 @@ int dictRehash(dict *d, int n) {
     return 1;
 }
 
+/* @4396 获取当前时间(毫秒) */
 long long timeInMilliseconds(void) {
     struct timeval tv;
 
@@ -294,6 +307,7 @@ long long timeInMilliseconds(void) {
     return (((long long)tv.tv_sec)*1000)+(tv.tv_usec/1000);
 }
 
+/* @4396 重新计算元素的hash，这是一个分批多步操作，当耗时超过ms时结束本次操作，返回重计算的个数 */
 /* Rehash for an amount of time between ms milliseconds and ms+1 milliseconds */
 int dictRehashMilliseconds(dict *d, int ms) {
     long long start = timeInMilliseconds();
@@ -318,9 +332,11 @@ static void _dictRehashStep(dict *d) {
     if (d->iterators == 0) dictRehash(d,1);
 }
 
+/* @4396 增加一个元素(key, val)到字典 */
 /* Add an element to the target hash table */
 int dictAdd(dict *d, void *key, void *val)
 {
+    /* @4396 已存在key时，会返回NULL */
     dictEntry *entry = dictAddRaw(d,key);
 
     if (!entry) return DICT_ERR;
@@ -481,6 +497,7 @@ int _dictClear(dict *d, dictht *ht, void(callback)(void *)) {
     return DICT_OK; /* never fails */
 }
 
+/* @4396 清理/销毁字典 */
 /* Clear & Release the hash table */
 void dictRelease(dict *d)
 {

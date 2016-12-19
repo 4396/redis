@@ -181,6 +181,7 @@ typedef void (dictScanFunction)(void *privdata, const dictEntry *de);
         (d)->type->keyCompare((d)->privdata, key1, key2) : \
         (key1) == (key2))
 
+/* @4396 计算元素key的hash值 */
 #define dictHashKey(d, key) (d)->type->hashFunction(key)
 #define dictGetKey(he) ((he)->key)
 #define dictGetVal(he) ((he)->v.val)
@@ -189,6 +190,7 @@ typedef void (dictScanFunction)(void *privdata, const dictEntry *de);
 #define dictGetDoubleVal(he) ((he)->v.d)
 #define dictSlots(d) ((d)->ht[0].size+(d)->ht[1].size)
 #define dictSize(d) ((d)->ht[0].used+(d)->ht[1].used)
+/* @4396 当rehashidx不等于-1时表示正在重新计算元素hash */
 #define dictIsRehashing(d) ((d)->rehashidx != -1)
 
 /* API */

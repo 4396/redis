@@ -513,6 +513,7 @@ unsigned int dictEncObjHash(const void *key) {
     robj *o = (robj*) key;
 
     if (sdsEncodedObject(o)) {
+        /* @4396 raw或embstr编码数据 */
         return dictGenHashFunction(o->ptr, sdslen((sds)o->ptr));
     } else {
         if (o->encoding == OBJ_ENCODING_INT) {
