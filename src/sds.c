@@ -38,7 +38,7 @@
 #include "sds.h"
 #include "sdsalloc.h"
 
-/* 根据sds类型获取sdshdrN结构体大小 */
+/* @4396 根据sds类型获取sdshdrN结构体大小 */
 static inline int sdsHdrSize(char type) {
     switch(type&SDS_TYPE_MASK) {
         case SDS_TYPE_5:
@@ -55,7 +55,7 @@ static inline int sdsHdrSize(char type) {
     return 0;
 }
 
-/* 根据字符串长度确定sds类型 */
+/* @4396 根据字符串长度确定sds类型 */
 static inline char sdsReqType(size_t string_size) {
     if (string_size < 1<<5)
         return SDS_TYPE_5;
@@ -94,24 +94,24 @@ static inline char sdsReqType(size_t string_size) {
 sds sdsnewlen(const void *init, size_t initlen) {
     void *sh;
     sds s;
-    /* 根据initlen确定合适的sds类型 */
+    /* @4396 根据initlen确定合适的sds类型 */
     char type = sdsReqType(initlen);
     /* Empty strings are usually created in order to append. Use type 8
      * since type 5 is not good at this. */
     if (type == SDS_TYPE_5 && initlen == 0) type = SDS_TYPE_8;
-    /* 根据sds类型计算sdshdrN的大小 */
+    /* @4396 根据sds类型计算sdshdrN的大小 */
     int hdrlen = sdsHdrSize(type);
     unsigned char *fp; /* flags pointer. */
 
-    /* 因为最后以\0结尾，所以大小需要+1 */
+    /* @4396 因为最后以\0结尾，所以大小需要+1 */
     sh = s_malloc(hdrlen+initlen+1);
-    /* 为什么不将这两个if调换一下顺序？ */
+    /* @4396 为什么不将这两个if调换一下顺序？ */
     if (!init)
         memset(sh, 0, hdrlen+initlen+1);
     if (sh == NULL) return NULL;
-    /* sdshdrN->buf */
+    /* @4396 sdshdrN->buf */
     s = (char*)sh+hdrlen;
-    /* sdshdrN->flags */
+    /* @4396 sdshdrN->flags */
     fp = ((unsigned char*)s)-1;
     switch(type) {
         case SDS_TYPE_5: {
@@ -119,7 +119,7 @@ sds sdsnewlen(const void *init, size_t initlen) {
             break;
         }
         case SDS_TYPE_8: {
-            /* SDS_HDR_VAR宏展开，会定义一个sh对象 */
+            /* @4396 SDS_HDR_VAR宏展开，会定义一个sh对象 */
             SDS_HDR_VAR(8,s);
             sh->len = initlen;
             sh->alloc = initlen;
@@ -148,36 +148,36 @@ sds sdsnewlen(const void *init, size_t initlen) {
             break;
         }
     }
-    /* 拷贝init的内容 */
+    /* @4396 拷贝init的内容 */
     if (initlen && init)
         memcpy(s, init, initlen);
-    /* 结尾加上\0 */
+    /* @4396 结尾加上\0 */
     s[initlen] = '\0';
     return s;
 }
 
-/* 创建一个空的(字符串长度为0)sds对象 */
+/* @4396 创建一个空的(字符串长度为0)sds对象 */
 /* Create an empty (zero length) sds string. Even in this case the string
  * always has an implicit null term. */
 sds sdsempty(void) {
     return sdsnewlen("",0);
 }
 
-/* 根据字符串init创建一个sds对象 */
+/* @4396 根据字符串init创建一个sds对象 */
 /* Create a new sds string starting from a null terminated C string. */
 sds sdsnew(const char *init) {
     size_t initlen = (init == NULL) ? 0 : strlen(init);
     return sdsnewlen(init, initlen);
 }
 
-/* 复制一个sds对象 */
+/* @4396 复制一个sds对象 */
 /* Duplicate an sds string. */
 sds sdsdup(const sds s) {
     /* s == char* == sdshdrN->buf */
     return sdsnewlen(s, sdslen(s));
 }
 
-/* 释放一个sds对象 */
+/* @4396 释放一个sds对象 */
 /* Free an sds string. No operation is performed if 's' is NULL. */
 void sdsfree(sds s) {
     if (s == NULL) return;
@@ -290,7 +290,7 @@ sds sdsMakeRoomFor(sds s, size_t addlen) {
     return s;
 }
 
-/* 给sds对象s缩容，将sds剩余的可用空间全部去掉 */
+/* @4396 给sds对象s缩容，将sds剩余的可用空间全部去掉 */
 /* Reallocate the sds string so that it has no free space at the end. The
  * contained string remains not altered, but next concatenation operations
  * will require a reallocation.
@@ -323,7 +323,7 @@ sds sdsRemoveFreeSpace(sds s) {
     return s;
 }
 
-/* 返回sds对象s分配的大小，包含头大小、字符串长度、剩余空间大小和\0结束符 */
+/* @4396 返回sds对象s分配的大小，包含头大小、字符串长度、剩余空间大小和\0结束符 */
 /* Return the total size of the allocation of the specifed sds string,
  * including:
  * 1) The sds header before the pointer.
@@ -336,7 +336,7 @@ size_t sdsAllocSize(sds s) {
     return sdsHdrSize(s[-1])+alloc+1;
 }
 
-/* 返回sds对象s的指针头，也就是sdshdrN的指针 */
+/* @4396 返回sds对象s的指针头，也就是sdshdrN的指针 */
 /* Return the pointer of the actual SDS allocation (normally SDS strings
  * are referenced by the start of the string buffer). */
 void *sdsAllocPtr(sds s) {
@@ -419,7 +419,7 @@ void sdsIncrLen(sds s, int incr) {
     s[len] = '\0';
 }
 
-/* 将sds对象s的空间增长到len大小，并将新增的空间全部置为0 */
+/* @4396 将sds对象s的空间增长到len大小，并将新增的空间全部置为0 */
 /* Grow the sds to have the specified length. Bytes that were not part of
  * the original length of the sds will be set to zero.
  *
@@ -438,7 +438,7 @@ sds sdsgrowzero(sds s, size_t len) {
     return s;
 }
 
-/* 向sds对象s尾部追加长度为len的t内容 */
+/* @4396 向sds对象s尾部追加长度为len的t内容 */
 /* Append the specified binary-safe string pointed by 't' of 'len' bytes to the
  * end of the specified sds string 's'.
  *
@@ -455,7 +455,7 @@ sds sdscatlen(sds s, const void *t, size_t len) {
     return s;
 }
 
-/* 向sds对象s尾部追加字符串t */
+/* @4396 向sds对象s尾部追加字符串t */
 /* Append the specified null termianted C string to the sds string 's'.
  *
  * After the call, the passed sds string is no longer valid and all the
@@ -464,7 +464,7 @@ sds sdscat(sds s, const char *t) {
     return sdscatlen(s, t, strlen(t));
 }
 
-/* 向sds对象s尾部追加另一个sds对象t */
+/* @4396 向sds对象s尾部追加另一个sds对象t */
 /* Append the specified sds 't' to the existing sds 's'.
  *
  * After the call, the modified sds string is no longer valid and all the
@@ -473,7 +473,7 @@ sds sdscatsds(sds s, const sds t) {
     return sdscatlen(s, t, sdslen(t));
 }
 
-/* 向sds对象s拷贝一个长度为len的字符串t */
+/* @4396 向sds对象s拷贝一个长度为len的字符串t */
 /* Destructively modify the sds string 's' to hold the specified binary
  * safe string pointed by 't' of length 'len' bytes. */
 sds sdscpylen(sds s, const char *t, size_t len) {
@@ -487,14 +487,14 @@ sds sdscpylen(sds s, const char *t, size_t len) {
     return s;
 }
 
-/* 向sds对象s拷贝一个字符串t */
+/* @4396 向sds对象s拷贝一个字符串t */
 /* Like sdscpylen() but 't' must be a null-termined string so that the length
  * of the string is obtained with strlen(). */
 sds sdscpy(sds s, const char *t) {
     return sdscpylen(s, t, strlen(t));
 }
 
-/* 将一个long long型的数值转换为string，返回数值长度 */
+/* @4396 将一个long long型的数值转换为string，返回数值长度 */
 /* Helper for sdscatlonglong() doing the actual number -> string
  * conversion. 's' must point to a string with room for at least
  * SDS_LLSTR_SIZE bytes.
@@ -533,7 +533,7 @@ int sdsll2str(char *s, long long value) {
     return l;
 }
 
-/* 将一个unsigned long long型的数值转换为string，返回数值长度 */
+/* @4396 将一个unsigned long long型的数值转换为string，返回数值长度 */
 /* Identical sdsll2str(), but for unsigned long long type. */
 int sdsull2str(char *s, unsigned long long v) {
     char *p, aux;
@@ -563,7 +563,7 @@ int sdsull2str(char *s, unsigned long long v) {
     return l;
 }
 
-/* 从long long型数值创建一个sds对象 */
+/* @4396 从long long型数值创建一个sds对象 */
 /* Create an sds string from a long long value. It is much faster than:
  *
  * sdscatprintf(sdsempty(),"%lld\n", value);
@@ -575,7 +575,7 @@ sds sdsfromlonglong(long long value) {
     return sdsnewlen(buf,len);
 }
 
-/* 向sds对象s尾部添加一个待格式化的数据 */
+/* @4396 向sds对象s尾部添加一个待格式化的数据 */
 /* Like sdscatprintf() but gets va_list instead of being variadic. */
 sds sdscatvprintf(sds s, const char *fmt, va_list ap) {
     va_list cpy;
@@ -620,7 +620,7 @@ sds sdscatvprintf(sds s, const char *fmt, va_list ap) {
     return t;
 }
 
-/* 向sds对象s尾部添加一个待格式化的数据 */
+/* @4396 向sds对象s尾部添加一个待格式化的数据 */
 /* Append to the sds string 's' a string obtained using printf-alike format
  * specifier.
  *
@@ -856,7 +856,7 @@ void sdsrange(sds s, int start, int end) {
     sdssetlen(s,newlen);
 }
 
-/* 将sds对象s中的字符全部转为小写 */
+/* @4396 将sds对象s中的字符全部转为小写 */
 /* Apply tolower() to every character of the sds string 's'. */
 void sdstolower(sds s) {
     int len = sdslen(s), j;
@@ -864,7 +864,7 @@ void sdstolower(sds s) {
     for (j = 0; j < len; j++) s[j] = tolower(s[j]);
 }
 
-/* 将sds对象s中的字符全部转为大写 */
+/* @4396 将sds对象s中的字符全部转为大写 */
 /* Apply toupper() to every character of the sds string 's'. */
 void sdstoupper(sds s) {
     int len = sdslen(s), j;
@@ -872,7 +872,7 @@ void sdstoupper(sds s) {
     for (j = 0; j < len; j++) s[j] = toupper(s[j]);
 }
 
-/* 比较sds对象s1和s2，当s1>s2时返回正数，当s1<s2时返回负数，相等时返回0 */
+/* @4396 比较sds对象s1和s2，当s1>s2时返回正数，当s1<s2时返回负数，相等时返回0 */
 /* Compare two sds strings s1 and s2 with memcmp().
  *
  * Return value:
@@ -896,7 +896,7 @@ int sdscmp(const sds s1, const sds s2) {
     return cmp;
 }
 
-/* 将字符串s按字符串sep拆分成若干sds对象 */
+/* @4396 将字符串s按字符串sep拆分成若干sds对象 */
 /* Split 's' with separator in 'sep'. An array
  * of sds strings is returned. *count will be set
  * by reference to the number of tokens returned.
@@ -962,7 +962,7 @@ cleanup:
     }
 }
 
-/* 释放sds数组tokens的空间 */
+/* @4396 释放sds数组tokens的空间 */
 /* Free the result returned by sdssplitlen(), or do nothing if 'tokens' is NULL. */
 void sdsfreesplitres(sds *tokens, int count) {
     if (!tokens) return;
@@ -971,7 +971,7 @@ void sdsfreesplitres(sds *tokens, int count) {
     s_free(tokens);
 }
 
-/* 将长度为len的字符串p追加到sds对象s中，会保留转义符 */
+/* @4396 将长度为len的字符串p追加到sds对象s中，会保留转义符 */
 /* Append to the sds string "s" an escaped string representation where
  * all the non-printable characters (tested with isprint()) are turned into
  * escapes in the form "\n\r\a...." or "\x<hex-number>".
@@ -1003,7 +1003,7 @@ sds sdscatrepr(sds s, const char *p, size_t len) {
     return sdscatlen(s,"\"",1);
 }
 
-/* 判断字符c是否是一个16进制字符 */
+/* @4396 判断字符c是否是一个16进制字符 */
 /* Helper function for sdssplitargs() that returns non zero if 'c'
  * is a valid hex digit. */
 int is_hex_digit(char c) {
@@ -1011,7 +1011,7 @@ int is_hex_digit(char c) {
            (c >= 'A' && c <= 'F');
 }
 
-/* 将16进制字符转换为数值 */
+/* @4396 将16进制字符转换为数值 */
 /* Helper function for sdssplitargs() that converts a hex digit into an
  * integer from 0 to 15 */
 int hex_digit_to_int(char c) {
@@ -1036,7 +1036,7 @@ int hex_digit_to_int(char c) {
     }
 }
 
-/* 拆分命令行参数line，返回sds数组和个数argc */
+/* @4396 拆分命令行参数line，返回sds数组和个数argc */
 /* Split a line into arguments, where every argument can be in the
  * following programming-language REPL-alike form:
  *
@@ -1197,7 +1197,7 @@ sds sdsmapchars(sds s, const char *from, const char *to, size_t setlen) {
     return s;
 }
 
-/* 将字符串数组argv加上字符串sep拼接成一个sds对象 */
+/* @4396 将字符串数组argv加上字符串sep拼接成一个sds对象 */
 /* Join an array of C strings using the specified separator (also a C string).
  * Returns the result as an sds string. */
 sds sdsjoin(char **argv, int argc, char *sep) {
@@ -1211,7 +1211,7 @@ sds sdsjoin(char **argv, int argc, char *sep) {
     return join;
 }
 
-/* 将sds对象数组argv加上字符串sep拼接成一个sds对象 */
+/* @4396 将sds对象数组argv加上字符串sep拼接成一个sds对象 */
 /* Like sdsjoin, but joins an array of SDS strings. */
 sds sdsjoinsds(sds *argv, int argc, const char *sep, size_t seplen) {
     sds join = sdsempty();

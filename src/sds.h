@@ -105,7 +105,7 @@ struct __attribute__ ((__packed__)) sdshdr64 {
  * sdshdrN所能表示字符串的最大长度就是2^N - 1
  */
 
-/* 取sds的字符串长度 */
+/* @4396 取sds的字符串长度 */
 static inline size_t sdslen(const sds s) {
     unsigned char flags = s[-1];
     switch(flags&SDS_TYPE_MASK) {
@@ -123,7 +123,7 @@ static inline size_t sdslen(const sds s) {
     return 0;
 }
 
-/* 取sds的可用空间，SDS_TYPE_5可用空间始终为0 */
+/* @4396 取sds的可用空间，SDS_TYPE_5可用空间始终为0 */
 static inline size_t sdsavail(const sds s) {
     unsigned char flags = s[-1];
     switch(flags&SDS_TYPE_MASK) {
@@ -150,13 +150,13 @@ static inline size_t sdsavail(const sds s) {
     return 0;
 }
 
-/* 设置sds的字符串长度 */
+/* @4396 设置sds的字符串长度 */
 static inline void sdssetlen(sds s, size_t newlen) {
     unsigned char flags = s[-1];
     switch(flags&SDS_TYPE_MASK) {
         case SDS_TYPE_5:
             {
-                /* fp表示flags pointer，SDS_TYPE_5的flags由低3位的类型与高5位的长度组成 */
+                /* @4396 fp表示flags pointer，SDS_TYPE_5的flags由低3位的类型与高5位的长度组成 */
                 unsigned char *fp = ((unsigned char*)s)-1;
                 *fp = SDS_TYPE_5 | (newlen << SDS_TYPE_BITS);
             }
@@ -176,13 +176,13 @@ static inline void sdssetlen(sds s, size_t newlen) {
     }
 }
 
-/* 将sds的字符串长度加上inc */
+/* @4396 将sds的字符串长度加上inc */
 static inline void sdsinclen(sds s, size_t inc) {
     unsigned char flags = s[-1];
     switch(flags&SDS_TYPE_MASK) {
         case SDS_TYPE_5:
             {
-                /* fp表示flags pointer，SDS_TYPE_5的flags由低3位的类型与高5位的长度组成 */
+                /* @4396 fp表示flags pointer，SDS_TYPE_5的flags由低3位的类型与高5位的长度组成 */
                 unsigned char *fp = ((unsigned char*)s)-1;
                 unsigned char newlen = SDS_TYPE_5_LEN(flags)+inc;
                 *fp = SDS_TYPE_5 | (newlen << SDS_TYPE_BITS);
@@ -203,7 +203,7 @@ static inline void sdsinclen(sds s, size_t inc) {
     }
 }
 
-/* 获取sds的字符串(分配)空间大小 */
+/* @4396 获取sds的字符串(分配)空间大小 */
 /* sdsalloc() = sdsavail() + sdslen() */
 static inline size_t sdsalloc(const sds s) {
     unsigned char flags = s[-1];
@@ -222,7 +222,7 @@ static inline size_t sdsalloc(const sds s) {
     return 0;
 }
 
-/* 设置sds字符串(分配)空间大小 */
+/* @4396 设置sds字符串(分配)空间大小 */
 static inline void sdssetalloc(sds s, size_t newlen) {
     unsigned char flags = s[-1];
     switch(flags&SDS_TYPE_MASK) {
@@ -244,30 +244,30 @@ static inline void sdssetalloc(sds s, size_t newlen) {
     }
 }
 
-/* 根据长度为initlen的init数据创建一个sds对象 */
+/* @4396 根据长度为initlen的init数据创建一个sds对象 */
 sds sdsnewlen(const void *init, size_t initlen);
-/* 根据字符串init创建一个sds对象 */
+/* @4396 根据字符串init创建一个sds对象 */
 sds sdsnew(const char *init);
-/* 创建一个空的sds对象 */
+/* @4396 创建一个空的sds对象 */
 sds sdsempty(void);
-/* 从sds对象s复制一个新的sds对象 */
+/* @4396 从sds对象s复制一个新的sds对象 */
 sds sdsdup(const sds s);
-/* 销毁/释放sds对象s */
+/* @4396 销毁/释放sds对象s */
 void sdsfree(sds s);
-/* 将sds对象s的空间增长到len大小，并将新增的空间全部置为0 */
+/* @4396 将sds对象s的空间增长到len大小，并将新增的空间全部置为0 */
 sds sdsgrowzero(sds s, size_t len);
-/* 向sds对象s尾部追加长度为len的t内容 */
+/* @4396 向sds对象s尾部追加长度为len的t内容 */
 sds sdscatlen(sds s, const void *t, size_t len);
-/* 向sds对象s尾部追加字符串t */
+/* @4396 向sds对象s尾部追加字符串t */
 sds sdscat(sds s, const char *t);
-/* 向sds对象s尾部追加另一个sds对象t */
+/* @4396 向sds对象s尾部追加另一个sds对象t */
 sds sdscatsds(sds s, const sds t);
-/* 向sds对象s拷贝一个长度为len的字符串t */
+/* @4396 向sds对象s拷贝一个长度为len的字符串t */
 sds sdscpylen(sds s, const char *t, size_t len);
-/* 向sds对象s拷贝一个字符串t */
+/* @4396 向sds对象s拷贝一个字符串t */
 sds sdscpy(sds s, const char *t);
 
-/* 向sds对象s尾部添加一个待格式化的数据 */
+/* @4396 向sds对象s尾部添加一个待格式化的数据 */
 sds sdscatvprintf(sds s, const char *fmt, va_list ap);
 #ifdef __GNUC__
 sds sdscatprintf(sds s, const char *fmt, ...)
@@ -276,49 +276,49 @@ sds sdscatprintf(sds s, const char *fmt, ...)
 sds sdscatprintf(sds s, const char *fmt, ...);
 #endif
 
-/* 向sds对象s尾部添加一个待格式化的数据 */
+/* @4396 向sds对象s尾部添加一个待格式化的数据 */
 sds sdscatfmt(sds s, char const *fmt, ...);
-/* 去掉sds对象s首尾的字符(cset中含有的字符) */
+/* @4396 去掉sds对象s首尾的字符(cset中含有的字符) */
 sds sdstrim(sds s, const char *cset);
-/* 截取sds对象s中的一段[start, end] */
+/* @4396 截取sds对象s中的一段[start, end] */
 void sdsrange(sds s, int start, int end);
-/* 更新sds对象s的字符串长度 */
+/* @4396 更新sds对象s的字符串长度 */
 void sdsupdatelen(sds s);
-/* 将sds对象s清空，修改字符串长度为0，并以\0结尾 */
+/* @4396 将sds对象s清空，修改字符串长度为0，并以\0结尾 */
 void sdsclear(sds s);
-/* 比较sds对象s1和s2，当s1>s2时返回正数，当s1<s2时返回负数，相等时返回0 */
+/* @4396 比较sds对象s1和s2，当s1>s2时返回正数，当s1<s2时返回负数，相等时返回0 */
 int sdscmp(const sds s1, const sds s2);
-/* 将字符串s按字符串sep拆分成若干sds对象 */
+/* @4396 将字符串s按字符串sep拆分成若干sds对象 */
 sds *sdssplitlen(const char *s, int len, const char *sep, int seplen, int *count);
-/* 销毁/释放sds数组tokens的空间 */
+/* @4396 销毁/释放sds数组tokens的空间 */
 void sdsfreesplitres(sds *tokens, int count);
-/* 将sds对象s中的字符全部转为小写 */
+/* @4396 将sds对象s中的字符全部转为小写 */
 void sdstolower(sds s);
-/* 将sds对象s中的字符全部转为大写 */
+/* @4396 将sds对象s中的字符全部转为大写 */
 void sdstoupper(sds s);
-/* 从long long型数值创建一个sds对象 */
+/* @4396 从long long型数值创建一个sds对象 */
 sds sdsfromlonglong(long long value);
-/* 将长度为len的字符串p追加到sds对象s中，会保留转义符 */
+/* @4396 将长度为len的字符串p追加到sds对象s中，会保留转义符 */
 sds sdscatrepr(sds s, const char *p, size_t len);
-/* 拆分命令行参数line，返回sds数组和个数argc */
+/* @4396 拆分命令行参数line，返回sds数组和个数argc */
 sds *sdssplitargs(const char *line, int *argc);
-/* 将sds对象s中含有from中的字符替换成to中的字符 */
+/* @4396 将sds对象s中含有from中的字符替换成to中的字符 */
 sds sdsmapchars(sds s, const char *from, const char *to, size_t setlen);
-/* 将字符串数组argv加上字符串sep拼接成一个sds对象 */
+/* @4396 将字符串数组argv加上字符串sep拼接成一个sds对象 */
 sds sdsjoin(char **argv, int argc, char *sep);
-/* 将sds对象数组argv加上字符串sep拼接成一个sds对象 */
+/* @4396 将sds对象数组argv加上字符串sep拼接成一个sds对象 */
 sds sdsjoinsds(sds *argv, int argc, const char *sep, size_t seplen);
 
 /* Low level functions exposed to the user API */
-/* 给sds对象s扩容，以便能够容纳下新增addlen大小的数据 */
+/* @4396 给sds对象s扩容，以便能够容纳下新增addlen大小的数据 */
 sds sdsMakeRoomFor(sds s, size_t addlen);
-/* 将sds对象s的字符串长度增大incr，incr也可以是负数，同时将最后一位置为\0 */
+/* @4396 将sds对象s的字符串长度增大incr，incr也可以是负数，同时将最后一位置为\0 */
 void sdsIncrLen(sds s, int incr);
-/* 给sds对象s缩容，将sds剩余的可用空间全部去掉 */
+/* @4396 给sds对象s缩容，将sds剩余的可用空间全部去掉 */
 sds sdsRemoveFreeSpace(sds s);
-/* 返回sds对象s分配的大小，包含头大小、字符串长度、剩余空间大小和\0结束符 */
+/* @4396 返回sds对象s分配的大小，包含头大小、字符串长度、剩余空间大小和\0结束符 */
 size_t sdsAllocSize(sds s);
-/* 返回sds对象s的指针头，也就是sdshdrN的指针 */
+/* @4396 返回sds对象s的指针头，也就是sdshdrN的指针 */
 void *sdsAllocPtr(sds s);
 
 /* Export the allocator used by SDS to the program using SDS.
