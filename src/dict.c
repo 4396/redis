@@ -203,7 +203,7 @@ int dictResize(dict *d)
 {
     int minimal;
 
-    /* @4396 (配置项)不能重置大小或者正在重计算元素hash，返回错误 */
+    /* @4396 (设置项)不能重置大小或者正在重计算元素hash，返回错误 */
     if (!dict_can_resize || dictIsRehashing(d)) return DICT_ERR;
     /* @4396 最小值等于hash表已使用个数，当然也不能小于DICT_HT_INITIAL_SIZE */
     minimal = d->ht[0].used;
@@ -412,6 +412,7 @@ int dictReplace(dict *d, void *key, void *val)
     return 0;
 }
 
+/* @4396 在字典中找一个元素，存在直接返回元素，不存在则添加一个元素再返回 */
 /* dictReplaceRaw() is simply a version of dictAddRaw() that always
  * returns the hash entry of the specified key, even if the key already
  * exists and can't be added (in that case the entry of the already
@@ -506,27 +507,32 @@ void dictRelease(dict *d)
     zfree(d);
 }
 
+/* @4396 在字典中查找键为key的对象 */
 dictEntry *dictFind(dict *d, const void *key)
 {
     dictEntry *he;
     unsigned int h, idx, table;
 
     if (d->ht[0].used + d->ht[1].used == 0) return NULL; /* dict is empty */
+    /* @4396 如果正在重建hash表，则调用一次重建操作 */
     if (dictIsRehashing(d)) _dictRehashStep(d);
     h = dictHashKey(d, key);
     for (table = 0; table <= 1; table++) {
         idx = h & d->ht[table].sizemask;
         he = d->ht[table].table[idx];
         while(he) {
+            /* @4396 hash冲突，遍历list中的每一个元素 */
             if (key==he->key || dictCompareKeys(d, key, he->key))
                 return he;
             he = he->next;
         }
+        /* @4396 当没有在重建hash表时，表明所有元素都在ht[0]中 */
         if (!dictIsRehashing(d)) return NULL;
     }
     return NULL;
 }
 
+/* @4396 从字典中取键为key的元素值 */
 void *dictFetchValue(dict *d, const void *key) {
     dictEntry *he;
 
@@ -1011,10 +1017,12 @@ void dictEmpty(dict *d, void(callback)(void*)) {
     d->iterators = 0;
 }
 
+/* @4396 启用重置字典大小 */
 void dictEnableResize(void) {
     dict_can_resize = 1;
 }
 
+/* @4396 禁用重置字典大小 */
 void dictDisableResize(void) {
     dict_can_resize = 0;
 }
