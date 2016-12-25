@@ -212,17 +212,20 @@ int dictResize(dict *d)
     return dictExpand(d, minimal);
 }
 
+/* @4396 扩张字典中的hash表或者新建，扩张实际上是开始重建hash表 */
 /* Expand or create the hash table */
 int dictExpand(dict *d, unsigned long size)
 {
     dictht n; /* the new hash table */
     unsigned long realsize = _dictNextPower(size);
 
+    /* @4396 当字典正在重建hash表或者已使用空间大于size时返回错误 */
     /* the size is invalid if it is smaller than the number of
      * elements already inside the hash table */
     if (dictIsRehashing(d) || d->ht[0].used > size)
         return DICT_ERR;
 
+    /* @4396 当扩容的大小等于已使用大小时返回错误，因为这是没有意义的 */
     /* Rehashing to the same table size is not useful. */
     if (realsize == d->ht[0].size) return DICT_ERR;
 
@@ -232,6 +235,7 @@ int dictExpand(dict *d, unsigned long size)
     n.table = zcalloc(realsize*sizeof(dictEntry*));
     n.used = 0;
 
+    /* @4396 当ht[0]为空时，直接将新hash表赋值给它 */
     /* Is this the first initialization? If so it's not really a rehashing
      * we just set the first hash table so that it can accept keys. */
     if (d->ht[0].table == NULL) {
@@ -239,6 +243,7 @@ int dictExpand(dict *d, unsigned long size)
         return DICT_OK;
     }
 
+    /* @4396 当ht[0]不为空时，将新hash表赋值给ht[1]，并标记rehashidx为0，开始重建hash表 */
     /* Prepare a second hash table for incremental rehashing */
     d->ht[1] = n;
     d->rehashidx = 0;
@@ -967,11 +972,13 @@ static int _dictExpandIfNeeded(dict *d)
     return DICT_OK;
 }
 
+/* @4396 计算字典要扩容的空间大小 */
 /* Our hash table capability is a power of two */
 static unsigned long _dictNextPower(unsigned long size)
 {
     unsigned long i = DICT_HT_INITIAL_SIZE;
 
+    /* @4396 最大不能超过LONG_MAX */
     if (size >= LONG_MAX) return LONG_MAX;
     while(1) {
         if (i >= size)
