@@ -79,7 +79,7 @@ static inline void	 swapfunc (char *, char *, size_t, int);
 #define SWAPINIT(a, es) swaptype = ((char *)a - (char *)0) % sizeof(long) || \
 	es % sizeof(long) ? 2 : es == sizeof(long)? 0 : 1;
 
-/* @4396 根据交换类型交换数组a和b */
+/* @4396 根据交换类型交换长度为n的对象a和b */
 static inline void
 swapfunc(char *a, char *b, size_t n, int swaptype)
 {
@@ -90,7 +90,7 @@ swapfunc(char *a, char *b, size_t n, int swaptype)
 		swapcode(char, a, b, n)
 }
 
-/* @4396 交换一个元素a和b */
+/* @4396 交换对象a和b */
 #define swap(a, b)						\
 	if (swaptype == 0) {					\
 		long t = *(long *)(void *)(a);			\
@@ -113,6 +113,7 @@ med3(char *a, char *b, char *c,
               :(cmp(b, c) > 0 ? b : (cmp(a, c) < 0 ? a : c ));
 }
 
+/* @4396 排序长度为n的数组a，排序区间l到m */
 static void
 _pqsort(void *a, size_t n, size_t es,
     int (*cmp) (const void *, const void *), void *lrange, void *rrange)
@@ -135,20 +136,31 @@ loop:	SWAPINIT(a, es);
 		pl = (char *) a;
 		pn = (char *) a + (n - 1) * es;
 		if (n > 40) {
+			/* @4396 2017-01-08 21:32:40
+			 *
+			 * 当数组元素个数大于40时，将数组分为8份
+			 * pl等于左边1、2、3的中间值
+			 * pm等于中间4、5、6的中间值
+			 * pn等于右边6、7、8的中间值
+			 */
 			d = (n / 8) * es;
 			pl = med3(pl, pl + d, pl + 2 * d, cmp);
 			pm = med3(pm - d, pm, pm + d, cmp);
 			pn = med3(pn - 2 * d, pn - d, pn, cmp);
 		}
+		/* @4396 pm取pl、pm、pn的中间值 */
 		pm = med3(pl, pm, pn, cmp);
 	}
+	/* @4396 将pm放在数组的最左边 */
 	swap(a, pm);
+	/* @4396 pa、pb指向数组的第二个元素 */
 	pa = pb = (char *) a + es;
-
+	/* @4396 pc、pd指向数组的最后一个元素 */
 	pc = pd = (char *) a + (n - 1) * es;
 	for (;;) {
 		while (pb <= pc && (cmp_result = cmp(pb, a)) <= 0) {
 			if (cmp_result == 0) {
+				/* @4396 如果pb等于pm(a[0])，将其依次放到数组左边 */
 				swap(pa, pb);
 				pa += es;
 			}
@@ -156,6 +168,7 @@ loop:	SWAPINIT(a, es);
 		}
 		while (pb <= pc && (cmp_result = cmp(pc, a)) >= 0) {
 			if (cmp_result == 0) {
+				/* @4396 如果pb等于pm(a[0])，将其依次放到数组右边 */
 				swap(pc, pd);
 				pd -= es;
 			}
@@ -167,34 +180,59 @@ loop:	SWAPINIT(a, es);
 		pb += es;
 		pc -= es;
 	}
+	/* @4396 2017-01-08 21:48:35
+	 *
+	 * 经过上面的for循环后
+	 * [左, pa) == pm
+	 * [pa, pb) < pm
+	 * [pc, pd) > pm
+	 * [pd, 右] == pm
+	 * 其中
+	 * pb == pc + 1
+	 * pa <= pb
+	 * pc >= pd
+	 *
+	 * == ... == < ... < > ... > ... == ... ==
+	 */
 
 	pn = (char *) a + n * es;
 	r = min(pa - (char *) a, pb - pa);
 	vecswap(a, pb - r, r);
 	r = min((size_t)(pd - pc), pn - pd - es);
 	vecswap(pb, pn - r, r);
+	/* @4396 2017-01-08 22:05:50
+	 *
+	 * 经过上面的两次vecswap后
+	 * 左边的全是小于pm的对象
+	 * 中间的全是等于pm的对象
+	 * 右边的全是大于pm的对象
+	 * < ... < == ... == ... == > ... >
+	 */
 	if ((r = pb - pa) > es) {
-                void *_l = a, *_r = ((unsigned char*)a)+r-1;
-                if (!((lrange < _l && rrange < _l) ||
-                    (lrange > _r && rrange > _r)))
+		void *_l = a, *_r = ((unsigned char*)a)+r-1;
+		/* @4396 存在小于pm的元素，且待排序区间在l、r之间 */
+		if (!((lrange < _l && rrange < _l) ||
+			(lrange > _r && rrange > _r)))
 		    _pqsort(a, r / es, es, cmp, lrange, rrange);
         }
 	if ((r = pd - pc) > es) {
-                void *_l, *_r;
+		void *_l, *_r;
 
 		/* Iterate rather than recurse to save stack space */
 		a = pn - r;
 		n = r / es;
 
-                _l = a;
-                _r = ((unsigned char*)a)+r-1;
-                if (!((lrange < _l && rrange < _l) ||
-                    (lrange > _r && rrange > _r)))
+		_l = a;
+		_r = ((unsigned char*)a)+r-1;
+		/* @4396 存在大于pm的元素，且待排序区间在l、r之间 */
+		if (!((lrange < _l && rrange < _l) ||
+			(lrange > _r && rrange > _r)))
 		    goto loop;
 	}
-/*		qsort(pn - r, r / es, es, cmp);*/
+/*	qsort(pn - r, r / es, es, cmp);*/
 }
 
+/* @4396 排序长度为n的数组a，取第l到m大小的值 */
 void
 pqsort(void *a, size_t n, size_t es,
     int (*cmp) (const void *, const void *), size_t lrange, size_t rrange)
