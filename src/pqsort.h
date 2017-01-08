@@ -33,6 +33,7 @@
 #ifndef __PQSORT_H
 #define __PQSORT_H
 
+/* @4396 快速排序数组a */
 void
 pqsort(void *a, size_t n, size_t es,
     int (*cmp) (const void *, const void *), size_t lrange, size_t rrange);

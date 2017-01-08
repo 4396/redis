@@ -48,6 +48,7 @@ static inline void	 swapfunc (char *, char *, size_t, int);
 
 #define min(a, b)	(a) < (b) ? a : b
 
+/* @4396 交换长度为n的parmi和parmj */
 /*
  * Qsort routine from Bentley & McIlroy's "Engineering a Sort Function".
  */
@@ -62,19 +63,34 @@ static inline void	 swapfunc (char *, char *, size_t, int);
         } while (--i > 0);				\
 }
 
+/* @4396 2017-01-08 18:32:22
+ *
+ * 确定swaptype的值，用于快速交换
+ *
+ * a表示数组，es表示数组中元素的大小
+ * 下面代码的简化版本是 (x || y) ? 2 : (z ? 0 : 1)
+ * 如果((char *)a - (char *)0) % sizeof(long)等于0表示数组a与机器字节对齐
+ *
+ * (数组a字节对齐 || 数组元素不是sizeof(long)的倍数) --> 2
+ * (数组a字节对齐 || 数组元素等于sizeof(long)) --> 0
+ * (数组a字节对齐 || 数组元素是sizeof(long)的倍数) --> 1
+ * (数组a不是字节对齐 || 无所谓) --> 其他(addr%sizeof(long))
+ */
 #define SWAPINIT(a, es) swaptype = ((char *)a - (char *)0) % sizeof(long) || \
 	es % sizeof(long) ? 2 : es == sizeof(long)? 0 : 1;
 
+/* @4396 根据交换类型交换数组a和b */
 static inline void
 swapfunc(char *a, char *b, size_t n, int swaptype)
 {
-
+	/* @4396 0、1表示数组字节对齐且元素为sizeof(long)的倍数 */
 	if (swaptype <= 1)
 		swapcode(long, a, b, n)
 	else
 		swapcode(char, a, b, n)
 }
 
+/* @4396 交换一个元素a和b */
 #define swap(a, b)						\
 	if (swaptype == 0) {					\
 		long t = *(long *)(void *)(a);			\
@@ -83,8 +99,10 @@ swapfunc(char *a, char *b, size_t n, int swaptype)
 	} else							\
 		swapfunc(a, b, es, swaptype)
 
+/* @4396 交换数组a和b */
 #define vecswap(a, b, n) if ((n) > 0) swapfunc((a), (b), (size_t)(n), swaptype)
 
+/* @4396 取a、b、c中间的值 */
 static inline char *
 med3(char *a, char *b, char *c,
     int (*cmp) (const void *, const void *))
@@ -105,6 +123,7 @@ _pqsort(void *a, size_t n, size_t es,
 
 loop:	SWAPINIT(a, es);
 	if (n < 7) {
+		/* @4396 当数组元素个数小于7个时，直接使用冒泡排序 */
 		for (pm = (char *) a + es; pm < (char *) a + n * es; pm += es)
 			for (pl = pm; pl > (char *) a && cmp(pl - es, pl) > 0;
 			     pl -= es)
