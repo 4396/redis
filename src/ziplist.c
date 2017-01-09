@@ -112,6 +112,20 @@
 #include "endianconv.h"
 #include "redisassert.h"
 
+/* @4396 2018-01-09 16:59:40
+ *
+ * area      |<---- ziplist header ---->|<----------- entries ------------->|<-end->|
+ *           +---------+--------+-------+--------+--------+--------+--------+-------+
+ * component | zlbytes | zltail | zllen | entry1 | entry2 |  ...   | entryN | zlend |
+ *           +---------+--------+-------+--------+--------+--------+--------+-------+
+ * size      | 4 bytes | 4 bytes|2 bytes|    ?   |    ?   |    ?   |     ?  | 1 byte|
+ *
+ * zlbytes ziplist整体的字节长度
+ * zltail 到达ziplist尾节点的偏移量
+ * zllen ziplist中节点的个数
+ * zlend 结束标志，始终为255
+ */
+
 #define ZIP_END 255
 #define ZIP_BIGLEN 254
 
@@ -422,6 +436,7 @@ static void zipEntry(unsigned char *p, zlentry *e) {
     e->p = p;
 }
 
+/* @4396 创建一个空的ziplist */
 /* Create a new empty ziplist. */
 unsigned char *ziplistNew(void) {
     unsigned int bytes = ZIPLIST_HEADER_SIZE+1;
@@ -433,6 +448,7 @@ unsigned char *ziplistNew(void) {
     return zl;
 }
 
+/* @4396 重置ziplist的空间大小 */
 /* Resize the ziplist. */
 static unsigned char *ziplistResize(unsigned char *zl, unsigned int len) {
     zl = zrealloc(zl,len);
@@ -999,6 +1015,7 @@ unsigned char *ziplistFind(unsigned char *p, unsigned char *vstr, unsigned int v
     return NULL;
 }
 
+/* @4396 返回ziplist节点个数 */
 /* Return length of ziplist. */
 unsigned int ziplistLen(unsigned char *zl) {
     unsigned int len = 0;
