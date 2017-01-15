@@ -153,6 +153,7 @@
 #define ZIP_IS_STR(enc) (((enc) & ZIP_STR_MASK) < ZIP_STR_MASK)
 
 /* Utility macros */
+/* @4396 获取压缩列表整体的字节大小 */
 #define ZIPLIST_BYTES(zl)       (*((uint32_t*)(zl)))
 #define ZIPLIST_TAIL_OFFSET(zl) (*((uint32_t*)((zl)+sizeof(uint32_t))))
 #define ZIPLIST_LENGTH(zl)      (*((uint16_t*)((zl)+sizeof(uint32_t)*2)))
@@ -689,6 +690,12 @@ static unsigned char *__ziplistInsert(unsigned char *zl, unsigned char *p, unsig
     return zl;
 }
 
+/* @4396 2017-01-15 17:00:00
+ *
+ * 合并两个压缩列表，返回新列表
+ * 在新列表中，first节点始终在前，second节点在后
+ * 合并后，first、second指针会释放空间或改变指向
+ */
 /* Merge ziplists 'first' and 'second' by appending 'second' to 'first'.
  *
  * NOTE: The larger ziplist is reallocated to contain the new merged ziplist.
@@ -722,6 +729,7 @@ unsigned char *ziplistMerge(unsigned char **first, unsigned char **second) {
     int append;
     unsigned char *source, *target;
     size_t target_bytes, source_bytes;
+    /* @4396 选择空间大的压缩列表作为目标列表 */
     /* Pick the largest ziplist so we can resize easily in-place.
      * We must also track if we are now appending or prepending to
      * the target ziplist. */
@@ -741,24 +749,29 @@ unsigned char *ziplistMerge(unsigned char **first, unsigned char **second) {
         append = 0;
     }
 
+    /* @4396 去掉一个列表头和尾空间大小，计算出最终的大小 */
     /* Calculate final bytes (subtract one pair of metadata) */
     size_t zlbytes = first_bytes + second_bytes -
                      ZIPLIST_HEADER_SIZE - ZIPLIST_END_SIZE;
     size_t zllength = first_len + second_len;
 
+    /* @4396 列表长度最多只能记录UINT16_MAX大小，大于等于UINT16_MAX时，需要遍历节点计算 */
     /* Combined zl length should be limited within UINT16_MAX */
     zllength = zllength < UINT16_MAX ? zllength : UINT16_MAX;
 
+    /* @4396 保存两个列表尾节点的偏移量 */
     /* Save offset positions before we start ripping memory apart. */
     size_t first_offset = intrev32ifbe(ZIPLIST_TAIL_OFFSET(*first));
     size_t second_offset = intrev32ifbe(ZIPLIST_TAIL_OFFSET(*second));
 
+    /* @4396 重新分配空间并合并节点，保证first列表节点始终在新列表前面 */
     /* Extend target to new zlbytes then append or prepend source. */
     target = zrealloc(target, zlbytes);
     if (append) {
         /* append == appending to target */
         /* Copy source after target (copying over original [END]):
          *   [TARGET - END, SOURCE - HEADER] */
+        /* @4396 target <==> first，source <==> second，拷贝second列表 */
         memcpy(target + target_bytes - ZIPLIST_END_SIZE,
                source + ZIPLIST_HEADER_SIZE,
                source_bytes - ZIPLIST_HEADER_SIZE);
@@ -767,12 +780,14 @@ unsigned char *ziplistMerge(unsigned char **first, unsigned char **second) {
         /* Move target *contents* exactly size of (source - [END]),
          * then copy source into vacataed space (source - [END]):
          *   [SOURCE - END, TARGET - HEADER] */
+        /* @4396 target <==> second，source <==> first，移动second列表，拷贝first列表 */
         memmove(target + source_bytes - ZIPLIST_END_SIZE,
                 target + ZIPLIST_HEADER_SIZE,
                 target_bytes - ZIPLIST_HEADER_SIZE);
         memcpy(target, source, source_bytes - ZIPLIST_END_SIZE);
     }
 
+    /* @4396 更新新列表头元数据 */
     /* Update header metadata. */
     ZIPLIST_BYTES(target) = intrev32ifbe(zlbytes);
     ZIPLIST_LENGTH(target) = intrev16ifbe(zllength);
@@ -785,12 +800,17 @@ unsigned char *ziplistMerge(unsigned char **first, unsigned char **second) {
                                    (first_bytes - ZIPLIST_END_SIZE) +
                                    (second_offset - ZIPLIST_HEADER_SIZE));
 
+    /* @4396 2017-01-15 17:06:30
+     *
+     * 由于每一个节点都会记录前一个节点的空间大小，而首节点是没有前节点的，记录值始终为0，
+     * 所以合并后需要依次修正source节点记录的前节点空间大小值 */
     /* __ziplistCascadeUpdate just fixes the prev length values until it finds a
      * correct prev length value (then it assumes the rest of the list is okay).
      * We tell CascadeUpdate to start at the first ziplist's tail element to fix
      * the merge seam. */
     target = __ziplistCascadeUpdate(target, target+first_offset);
 
+    /* @4396 释放空间或者改变指向 */
     /* Now free and NULL out what we didn't realloc */
     if (append) {
         zfree(*second);
