@@ -114,11 +114,11 @@
 
 /* @4396 2018-01-09 16:59:40
  *
- * area      |<---- ziplist header ---->|<----------- entries ------------->|<-end->|
- *           +---------+--------+-------+--------+--------+--------+--------+-------+
- * component | zlbytes | zltail | zllen | entry1 | entry2 |  ...   | entryN | zlend |
- *           +---------+--------+-------+--------+--------+--------+--------+-------+
- * size      | 4 bytes | 4 bytes|2 bytes|    ?   |    ?   |    ?   |     ?  | 1 byte|
+ * |<---- ziplist header ---->|<----------- entries ------------->|<-end->|
+ * +---------+--------+-------+--------+--------+--------+--------+-------+
+ * | zlbytes | zltail | zllen | entry1 | entry2 |  ...   | entryN | zlend |
+ * +---------+--------+-------+--------+--------+--------+--------+-------+
+ * | 4 bytes | 4 bytes|2 bytes|    ?   |    ?   |    ?   |     ?  | 1 byte|
  *
  * zlbytes ziplist整体的字节长度
  * zltail 到达ziplist尾节点的偏移量
@@ -170,14 +170,21 @@
         ZIPLIST_LENGTH(zl) = intrev16ifbe(intrev16ifbe(ZIPLIST_LENGTH(zl))+incr); \
 }
 
+/* @4396 压缩列表节点的定义 */
 typedef struct zlentry {
+    /* @4396 前一个节点的长度len和len的字节大小 */
     unsigned int prevrawlensize, prevrawlen;
+    /* @4396 当前节点的长度len和len的字节大小 */
     unsigned int lensize, len;
+    /* @4396 当前节点的头部大小，prevrawlensize + lensize */
     unsigned int headersize;
+    /* @4396 当前节点的编码类型 */
     unsigned char encoding;
+    /* @4396 指向当前节点起始位置的指针 */
     unsigned char *p;
 } zlentry;
 
+/* @4396 将节点置空，初始化时使用 */
 #define ZIPLIST_ENTRY_ZERO(zle) { \
     (zle)->prevrawlensize = (zle)->prevrawlen = 0; \
     (zle)->lensize = (zle)->len = (zle)->headersize = 0; \
@@ -185,6 +192,7 @@ typedef struct zlentry {
     (zle)->p = NULL; \
 }
 
+/* @4396 获取节点编码类型 */
 /* Extract the encoding from the byte pointed by 'ptr' and set it into
  * 'encoding'. */
 #define ZIP_ENTRY_ENCODING(ptr, encoding) do {  \
@@ -194,6 +202,7 @@ typedef struct zlentry {
 
 void ziplistRepr(unsigned char *zl);
 
+/* @4396 返回数值类型节点内容的大小 */
 /* Return bytes needed to store integer encoded by 'encoding' */
 static unsigned int zipIntSize(unsigned char encoding) {
     switch(encoding) {
@@ -272,9 +281,15 @@ static unsigned int zipEncodeLength(unsigned char *p, unsigned char encoding, un
     }                                                                          \
 } while(0);
 
+/* @4396 编码前一个节点的长度到当前节点中，并返回占用空间，如果当前节点p为空，则仅仅是计算编码所需的空间 */
 /* Encode the length of the previous entry and write it to "p". Return the
  * number of bytes needed to encode this length if "p" is NULL. */
 static unsigned int zipPrevEncodeLength(unsigned char *p, unsigned int len) {
+    /* @4396 2017-02-05 18:53:00
+     *
+     * 当len长度小于ZIP_BIGLEN时，需要一个字节的空间大小，将len直接赋值给p[0]
+     * 当len长度大于等于ZIP_BIGLEN时，将p[0]直接置为ZIP_BIGLEN，将len赋值给p+1
+     */
     if (p == NULL) {
         return (len < ZIP_BIGLEN) ? 1 : sizeof(len)+1;
     } else {
@@ -290,6 +305,7 @@ static unsigned int zipPrevEncodeLength(unsigned char *p, unsigned int len) {
     }
 }
 
+/* @4396 无论len的大小，将p[0]置为ZIP_BIGLEN，len赋值给p+1，只在__ziplistCascadeUpdate中使用 */
 /* Encode the length of the previous entry and write it to "p". This only
  * uses the larger encoding (required in __ziplistCascadeUpdate). */
 static void zipPrevEncodeLengthForceLarge(unsigned char *p, unsigned int len) {
@@ -299,6 +315,7 @@ static void zipPrevEncodeLengthForceLarge(unsigned char *p, unsigned int len) {
     memrev32ifbe(p+1);
 }
 
+/* @4396 解码前一个节点长度编码占用的字节大小 */
 /* Decode the number of bytes required to store the length of the previous
  * element, from the perspective of the entry pointed to by 'ptr'. */
 #define ZIP_DECODE_PREVLENSIZE(ptr, prevlensize) do {                          \
@@ -309,6 +326,7 @@ static void zipPrevEncodeLengthForceLarge(unsigned char *p, unsigned int len) {
     }                                                                          \
 } while(0);
 
+/* @4396 解码前一个节点的长度，先解码长度编码后占用的字节大小，然后获取长度的值 */
 /* Decode the length of the previous element, from the perspective of the entry
  * pointed to by 'ptr'. */
 #define ZIP_DECODE_PREVLEN(ptr, prevlensize, prevlen) do {                     \
@@ -824,6 +842,7 @@ unsigned char *ziplistMerge(unsigned char **first, unsigned char **second) {
     return target;
 }
 
+/* @4396 向ziplist头部或者尾部插入一个长度为slen的节点s，where等于0表示头部，等于1表示尾部 */
 unsigned char *ziplistPush(unsigned char *zl, unsigned char *s, unsigned int slen, int where) {
     unsigned char *p;
     p = (where == ZIPLIST_HEAD) ? ZIPLIST_ENTRY_HEAD(zl) : ZIPLIST_ENTRY_END(zl);

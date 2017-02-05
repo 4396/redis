@@ -31,6 +31,7 @@
 #ifndef _ZIPLIST_H
 #define _ZIPLIST_H
 
+/* @4396 定义push的位置 */
 #define ZIPLIST_HEAD 0
 #define ZIPLIST_TAIL 1
 
@@ -38,6 +39,7 @@
 unsigned char *ziplistNew(void);
 /* @4396 合并两个压缩列表，返回新列表 */
 unsigned char *ziplistMerge(unsigned char **first, unsigned char **second);
+/* @4396 向ziplist头部或者尾部插入一个长度为slen的节点s，where等于0表示头部，等于1表示尾部 */
 unsigned char *ziplistPush(unsigned char *zl, unsigned char *s, unsigned int slen, int where);
 unsigned char *ziplistIndex(unsigned char *zl, int index);
 unsigned char *ziplistNext(unsigned char *zl, unsigned char *p);
